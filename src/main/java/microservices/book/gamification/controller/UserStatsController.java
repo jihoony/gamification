@@ -13,7 +13,7 @@ class UserStatsController {
 
     private final GameService gameService;
 
-    UserStatsController(final GameService gameService) {
+    public UserStatsController(final GameService gameService) {
         this.gameService = gameService;
     }
 

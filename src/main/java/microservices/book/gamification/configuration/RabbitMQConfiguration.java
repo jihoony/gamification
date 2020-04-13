@@ -12,6 +12,9 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.converter.MappingJackson2MessageConverter;
 import org.springframework.messaging.handler.annotation.support.DefaultMessageHandlerMethodFactory;
 
+/**
+ * 이벤트를 사용하기 위한 RabbitMQ 설정
+ */
 @Configuration
 public class RabbitMQConfiguration implements RabbitListenerConfigurer {
 
@@ -44,7 +47,7 @@ public class RabbitMQConfiguration implements RabbitListenerConfigurer {
     }
 
     @Override
-    public void configureRabbitListeners(RabbitListenerEndpointRegistrar registrar) {
+    public void configureRabbitListeners(final RabbitListenerEndpointRegistrar registrar) {
         registrar.setMessageHandlerMethodFactory(messageHandlerMethodFactory());
     }
 }

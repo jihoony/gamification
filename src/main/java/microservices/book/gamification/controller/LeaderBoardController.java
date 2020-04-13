@@ -14,7 +14,7 @@ class LeaderBoardController {
 
     private final LeaderBoardService leaderBoardService;
 
-    LeaderBoardController(final LeaderBoardService leaderBoardService) {
+    public LeaderBoardController(final LeaderBoardService leaderBoardService) {
         this.leaderBoardService = leaderBoardService;
     }
 

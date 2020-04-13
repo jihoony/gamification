@@ -6,6 +6,9 @@ import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
+/**
+ * 이벤트를 받고 연관된 비즈니스 로직을 동작시킴
+ */
 @Slf4j
 @Component
 class EventHandler {

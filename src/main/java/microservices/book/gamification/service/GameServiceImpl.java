@@ -1,6 +1,8 @@
 package microservices.book.gamification.service;
 
 import lombok.extern.slf4j.Slf4j;
+import microservices.book.gamification.client.MultiplicationResultAttemptClient;
+import microservices.book.gamification.client.dto.MultiplicationResultAttempt;
 import microservices.book.gamification.domain.Badge;
 import microservices.book.gamification.domain.BadgeCard;
 import microservices.book.gamification.domain.GameStats;
@@ -18,16 +20,25 @@ import java.util.stream.Collectors;
 @Slf4j
 class GameServiceImpl implements GameService {
 
+    public static final int LUCKY_NUMBER = 42;
+
     private ScoreCardRepository scoreCardRepository;
     private BadgeCardRepository badgeCardRepository;
+    private MultiplicationResultAttemptClient attemptClient;
 
-    GameServiceImpl(ScoreCardRepository scoreCardRepository, BadgeCardRepository badgeCardRepository) {
+
+    GameServiceImpl(ScoreCardRepository scoreCardRepository,
+                    BadgeCardRepository badgeCardRepository,
+                    MultiplicationResultAttemptClient attemptClient) {
         this.scoreCardRepository = scoreCardRepository;
         this.badgeCardRepository = badgeCardRepository;
+        this.attemptClient = attemptClient;
     }
 
     @Override
-    public GameStats newAttemptForUser(final Long userId, final Long attemptId, final boolean correct) {
+    public GameStats newAttemptForUser(final Long userId, 
+	final Long attemptId, 
+	final boolean correct) {
 
         if (correct){
             ScoreCard scoreCard = new ScoreCard(userId, attemptId);
@@ -53,20 +64,38 @@ class GameServiceImpl implements GameService {
         int totalScore = scoreCardRepository.getTotalScoreForUser(userId);
         log.info("사용자 ID {} 의 새로운 점수 {}", userId, totalScore);
 
-        List<ScoreCard> scoreCardList = scoreCardRepository.findByUserIdOrderByScoreTimestampDesc(userId);
-        List<BadgeCard> badgeCardList = badgeCardRepository.findByUserIdOrderByBadgeTimestampDesc(userId);
-        
-        checkAndGiveBadgeBasedOnScore(badgeCardList, Badge.BRONZE_MULTIPLICATOR, totalScore, 100, userId)
+        List<ScoreCard> scoreCardList = scoreCardRepository
+			.findByUserIdOrderByScoreTimestampDesc(userId);
+        List<BadgeCard> badgeCardList = badgeCardRepository
+			.findByUserIdOrderByBadgeTimestampDesc(userId);
+
+        // 점수 기반 배지
+        checkAndGiveBadgeBasedOnScore(badgeCardList, 
+			Badge.BRONZE_MULTIPLICATOR, totalScore, 100, userId)
+                .ifPresent(badgeCards::add);
+        checkAndGiveBadgeBasedOnScore(badgeCardList, 
+			Badge.SILVER_MULTIPLICATOR, totalScore, 500, userId)
+                .ifPresent(badgeCards::add);
+        checkAndGiveBadgeBasedOnScore(badgeCardList, 
+			Badge.GOLD_MULTIPLICATOR, totalScore, 999, userId)
                 .ifPresent(badgeCards::add);
 
-        checkAndGiveBadgeBasedOnScore(badgeCardList, Badge.SILVER_MULTIPLICATOR, totalScore, 500, userId)
-                .ifPresent(badgeCards::add);
-        checkAndGiveBadgeBasedOnScore(badgeCardList, Badge.GOLD_MULTIPLICATOR, totalScore, 999, userId)
-                .ifPresent(badgeCards::add);
-        
-        if (scoreCardList.size() == 1 && !containsBadge(badgeCardList, Badge.FIRST_WON)){
+        // 첫번째 정답 배지
+        if (scoreCardList.size() == 1 && 
+				!containsBadge(badgeCardList, Badge.FIRST_WON)){
             BadgeCard firstWonBadge = giveBadgeToUser(Badge.FIRST_WON, userId);
-            badgeCardList.add(firstWonBadge);
+            badgeCards.add(firstWonBadge);
+        }
+
+        // 행운의 숫자 배지
+        MultiplicationResultAttempt attempt = attemptClient
+				.retrieveMultiplicationResultAttemptById(attemptId);
+        if (!containsBadge(badgeCardList, Badge.LUCKY_NUMBER) &&
+                (LUCKY_NUMBER == attempt.getMultiplicationFactorA() || 
+						LUCKY_NUMBER == attempt.getMultiplicationFactorB())){
+            BadgeCard luckyNumberBadge = giveBadgeToUser(
+				Badge.LUCKY_NUMBER, userId);
+            badgeCards.add(luckyNumberBadge);
         }
 
         return badgeCards;
@@ -75,7 +104,8 @@ class GameServiceImpl implements GameService {
     @Override
     public GameStats retrieveStatsForUser(final Long userId) {
         int score = scoreCardRepository.getTotalScoreForUser(userId);
-        List<BadgeCard> badgeCards = badgeCardRepository.findByUserIdOrderByBadgeTimestampDesc(userId);
+        List<BadgeCard> badgeCards = badgeCardRepository
+			.findByUserIdOrderByBadgeTimestampDesc(userId);
 
         return new GameStats(userId, score,
                 badgeCards.stream()
